@@ -2,6 +2,7 @@ import os
 import pandas as pd
 from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split
+from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -16,9 +17,9 @@ ratings = pd.read_csv('ml-100k/u.data', sep='\t', names=['user_id', 'movie_id', 
 # Load movies
 movies = pd.read_csv('ml-100k/u.item', sep='|', encoding='latin-1', 
     names=['movie_id', 'title', 'release_date', 'video_release_date', 'imdb_url', 
-           'unknown', 'Action', 'Adventure', 'Animation', 'Children', 'Comedy', 
-           'Crime', 'Documentary', 'Drama', 'Fantasy', 'Film-Noir', 'Horror', 
-           'Musical', 'Mystery', 'Romance', 'Sci-Fi', 'Thriller', 'War', 'Western'])
+        'unknown', 'Action', 'Adventure', 'Animation', 'Children', 'Comedy', 
+        'Crime', 'Documentary', 'Drama', 'Fantasy', 'Film-Noir', 'Horror', 
+        'Musical', 'Mystery', 'Romance', 'Sci-Fi', 'Thriller', 'War', 'Western'])
 
 # Data sanity checks
 print("Missing values in ratings:")
@@ -57,6 +58,36 @@ for user_id in user_item_matrix.index:
 user_item_matrix_zero.to_csv('data/user_item_matrix_zero.csv')
 user_item_matrix_mean.to_csv('data/user_item_matrix_mean.csv')
 print("User-Item Matrices (zero-filled and mean-filled) saved.")
+
+#load normalized matrix
+normalized_matrix = pd.read_csv('data/normalized_user_item_matrix.csv', index_col=0)
+
+#fill NANS with 0 for cosine similarity
+normalized_matrix_zero = normalized_matrix.fillna(0)
+
+#Display matrix info
+print("Normalized User-Item Matrix Shape:", normalized_matrix.shape)
+print("Number of non-NaN entries in normalized matrix:", normalized_matrix_zero.iloc[:5,:5])
+
+similarity_matrix = cosine_similarity(normalized_matrix_zero)
+
+# Convert to DataFrame for easier lookup
+similarity_df = pd.DataFrame(
+    similarity_matrix,
+    index = normalized_matrix_zero.index,
+    columns = normalized_matrix_zero.index
+)
+
+#Display sample
+print("User Similarity Matrix Shape:", similarity_df.shape)
+print("Sample of Similarity Matrix:")
+print("Similarity Matrix Statistics:")
+print(similarity_df.describe())
+print(similarity_df.iloc[:5, :5])
+
+# Save similarity matrix
+similarity_df.to_csv('data/user_similarity_matrix.csv')
+print("User similarity matrix saved to data/user_similarity_matrix.csv")
 
 # Normalize ratings by user mean
 normalized_matrix = user_item_matrix.sub(user_means, axis=0)
@@ -135,6 +166,15 @@ plt.title('User-Item Matrix (Subset)')
 plt.xlabel('Movie ID')
 plt.ylabel('User ID')
 plt.savefig('plots/user_item_matrix_heatmap.png')
+plt.close()
+
+# Visualize a subset (first 20 users)
+plt.figure(figsize=(10, 8))
+sns.heatmap(similarity_df.iloc[:20, :20], cmap='coolwarm', center=0)
+plt.title('User Similarity Matrix (Subset)')
+plt.xlabel('User ID')
+plt.ylabel('User ID')
+plt.savefig('plots/user_similarity_heatmap.png')
 plt.close()
 
 # Evaluation helpers
